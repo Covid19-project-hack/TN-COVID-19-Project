@@ -8,6 +8,7 @@ import android.app.SearchManager;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -17,15 +18,21 @@ import android.widget.ImageView;
 import android.widget.SearchView;
 import android.widget.Toast;
 
+import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.VolleyLog;
+import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.covid19project.Adapter.CoronaAdapter;
 import com.covid19project.Adapter.FAQAdapter;
 import com.covid19project.Models.Corona;
 import com.covid19project.Models.FAQ;
+import com.covid19project.Models.Persons;
+import com.google.firebase.database.DataSnapshot;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -34,6 +41,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 public class CoronaActivity extends AppCompatActivity {
@@ -76,25 +84,22 @@ public class CoronaActivity extends AppCompatActivity {
     }
 
     private void parseJSON(String url1) {
-        JsonObjectRequest request = new JsonObjectRequest(url1, null,
+
+        JsonObjectRequest request1 = new JsonObjectRequest(Request.Method.GET,url1, null,
                 new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
                         try {
-                            JSONArray jsonArray = response.getJSONArray("districtData");
-
-                            for (int i = 0; i < jsonArray.length(); i++) {
-                                JSONObject hit = jsonArray.getJSONObject(i);
-                                String district = hit.getString("district");
-                                String confirmed = hit.getString("confirmed");
-
-                                viewItems.add(new Corona(district, confirmed));
+                            JSONObject jsonObject = response.getJSONObject("Tamil Nadu").getJSONObject("districtData");
+                            Log.i("jsonresponse","hi");
+                            Iterator iterator = jsonObject.keys();
+                            while (iterator.hasNext()) {
+                                String key = (String) iterator.next();
+                                viewItems.add(new Corona(key, jsonObject.get(key).toString().split(",")[2].split(":")[1]));
                             }
                             mAdapter = new CoronaAdapter(CoronaActivity.this, viewItems);
                             mRecyclerView.setAdapter(mAdapter);
                             mAdapter.notifyDataSetChanged();
-
-
                         } catch (JSONException e) {
                             e.printStackTrace();
                         }
@@ -106,7 +111,8 @@ public class CoronaActivity extends AppCompatActivity {
             }
         });
 
-        mRequestQueue.add(request);
+        mRequestQueue.add(request1);
+
     }
 
 }

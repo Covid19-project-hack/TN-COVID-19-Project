@@ -1,5 +1,6 @@
 package com.covid19project;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Activity;
@@ -17,8 +18,16 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.textfield.TextInputLayout;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+
+import java.util.HashMap;
 
 public class MyHealthStatusActivity extends AppCompatActivity {
 
@@ -26,7 +35,14 @@ public class MyHealthStatusActivity extends AppCompatActivity {
     private RadioButton rcough,rfever, rbreath, rtravel, rnaf;
     private FloatingActionButton button;
 
+    private DatabaseReference mHealthStatusDatabase;
+
     private ImageView Back;
+    private int factor = 0;
+    private boolean serious = false;
+
+    private FirebaseUser mFirebaseUser;
+    private String mCurrentUserId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +55,12 @@ public class MyHealthStatusActivity extends AppCompatActivity {
         radiogrp_travel=findViewById(R.id.radiogrp_travel);
         radiogrp_nearaffected=findViewById(R.id.radiogrp_nearaffected);
         button=findViewById(R.id.fab_submit);
+
+        mFirebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        mCurrentUserId = mFirebaseUser.getUid();
+
+        mHealthStatusDatabase = FirebaseDatabase.getInstance().getReference().child("Health_Status").child(mCurrentUserId);
+        mHealthStatusDatabase.keepSynced(true);
 
         Back = findViewById(R.id.toolbar_icon);
 
@@ -77,8 +99,7 @@ public class MyHealthStatusActivity extends AppCompatActivity {
 
 
                     if (isEmpty(Cough, Fever, Breath, Travel, NAF)) {
-                        int factor = 0;
-                        boolean serious = false;
+
                         if (Cough.equals("Yes")) {
                             factor++;
                         }
@@ -95,16 +116,36 @@ public class MyHealthStatusActivity extends AppCompatActivity {
                             factor++;
                             serious = true;
                         }
-                        if (factor == 0) {
-                            alert.showDialog(MyHealthStatusActivity.this,
-                                    "The risk of being affected is less. Stay safe in your home!", R.drawable.healthy);
-                        } else if (serious == true) {
-                            alert.showDialog(MyHealthStatusActivity.this,
-                                    "You have a high risk of getting affected. Go to a nearby corona testing center immediately.", R.drawable.danger);
-                        } else {
-                            alert.showDialog(MyHealthStatusActivity.this,
-                                    "You have symptoms of Corona virus. Stay quarentined in home and we recommend you to visit a nearby corona testing center.", R.drawable.alert);
-                        }
+
+                        final HashMap HealthMap = new HashMap<>();
+                        HealthMap.put("cough", Cough);
+                        HealthMap.put("fever", Fever);
+                        HealthMap.put("breath", Breath);
+                        HealthMap.put("Travel", Travel);
+                        HealthMap.put("naf", NAF);
+                        HealthMap.put("factor", factor);
+                        HealthMap.put("serious", serious);
+
+                        mHealthStatusDatabase.setValue(HealthMap).addOnCompleteListener(new OnCompleteListener<Void>() {
+                            @Override
+                            public void onComplete(@NonNull Task<Void> task) {
+                                if (task.isComplete()){
+                                    if (factor == 0) {
+                                        alert.showDialog(MyHealthStatusActivity.this,
+                                                "The risk of being affected is less. Stay safe in your home!", R.drawable.healthy);
+                                    } else if (serious == true) {
+                                        alert.showDialog(MyHealthStatusActivity.this,
+                                                "You have a high risk of getting affected. Go to a nearby corona testing center immediately.", R.drawable.danger);
+                                    } else {
+                                        alert.showDialog(MyHealthStatusActivity.this,
+                                                "You have symptoms of Corona virus. Stay quarentined in home and we recommend you to visit a nearby corona testing center.", R.drawable.alert);
+                                    }
+                                    Toast.makeText(MyHealthStatusActivity.this, "Done", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+
+
 
                     } else {
                         Toast.makeText(MyHealthStatusActivity.this, "Complete all details", Toast.LENGTH_SHORT).show();
